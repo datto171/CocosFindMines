@@ -4,7 +4,9 @@ const { ccclass, property } = _decorator;
 
 @ccclass('GameBoard')
 export class GameBoard extends Component {
-    // Variable for setup game 
+    private _timer: number = 0.0;
+
+    // letiable for setup game 
     @property width = 9;
     @property height = 9;
     @property numberMines = 1;
@@ -18,53 +20,108 @@ export class GameBoard extends Component {
     @property({ type: [Node] }) posContainTiles = null;
     @property({ type: [TileComponent] }) tilePref = null;
 
+    @property({ type: [Label] }) textScorePlayer = null;
+    @property({ type: [Label] }) textScoreEnemy = null;
+
     @property({ type: sp.Skeleton }) skePlayer: sp.Skeleton | null = null;
     @property({ type: sp.Skeleton }) skeEnemy: sp.Skeleton | null = null;
 
-    // Variable logic game 
+    @property({ type: Node }) popupWin : Node = null;
+    @property({ type: Node }) popupLose : Node = null;
+
+    // letiable logic game 
     isContinue = false;
-    isTurnPlayer = true;
+    isTurnEnemy = true;
     turnPlayer = 1;
+    scorePlayer = 0;
+    scoreEnemy = 0;
+    scoreToWin = 0;
+    playerWin = -1;
 
     start() {
+        this._timer = 1.0;
+
         this.SetIndexMap();
         this.SetupMines();
         this.SetupNumbers();
+        console.log(this.numberMines);
+        this.scoreToWin = Math.ceil((this.numberMines - 1) / 2);
+        console.log(this.scoreToWin);
 
         this.ListenEvent();
         this.skePlayer.setAnimation(0, "Idle2", true);
+        this.textScorePlayer.getComponent(Label).string = 0;
+        this.textScoreEnemy.getComponent(Label).string = 0;
+    }
 
+    // Handle Timer ~~ No need right now
+    update(deltaTime: number) {
+
+        // if (this._timer >= 10.0) {
+        //     console.log('I am done!');
+        //     this._timer = 0;
+        //     // this.enabled = false;
+        // }
+
+        if (this.turnPlayer == 2 && this.isTurnEnemy) {
+            this._timer += deltaTime;
+            if (this._timer > 3) {
+                this.isTurnEnemy = false;
+                this.BotPlay();
+                this.CheckEndGame();
+                if (this.playerWin == -1) {
+                    this.NextTurn();
+                }
+            }
+        }
     }
 
     // Listen event of all tiles
     ListenEvent() {
-        for (var i = 0; i < this.listTiles.length; i++) {
+        for (let i = 0; i < this.listTiles.length; i++) {
             this.listTiles[i].tile.on("ClickTile", this.Emit_OpenTile, this);
+        }
+    }
+
+    OffEvent() {
+        for (let i = 0; i < this.listTiles.length; i++) {
+            this.listTiles[i].tile.off("ClickTile", this.Emit_OpenTile, this);
         }
     }
 
     // HANDLE LOGIC GAME PLAY (ALL STATE MACHINE)
     Emit_OpenTile(x, y) {
-        this.OpenTile(x,y);
+        console.log
+        this.OpenTile(x, y);
+
         this.CheckEndGame();
+        if (this.playerWin == -1) {
+            this.NextTurn();
+
+            if (this.turnPlayer == 2) {
+                this.OffEvent();
+            }
+        }
+        //  else {
+        //     this.ListenEvent();
+        // }
     }
 
     OpenTile(x, y) {
-        // console.log(x + ":" + y)
-        var tile = this.GetTile(x, y);
+        let tile = this.GetTile(x, y);
         if (tile != null) {
-            // console.log("Handle Open Tile");
             tile.img.getComponent(Sprite).spriteFrame = null;
             tile.isHide = false;
-            // this.animPlayer.play("Idle2");
             if (tile.isMine) {
                 // Change img Flag
-                if (this.isTurnPlayer) {
+                if (this.turnPlayer == 1) {
+                    this.scorePlayer += 1;
                     tile.img.getComponent(Sprite).spriteFrame = this.arrSpritesBombPlayer[0];
                 } else {
+                    this.scoreEnemy += 1;
                     tile.img.getComponent(Sprite).spriteFrame = this.arrSpritesBombEnemy[0];
                 }
-                tile.img.getComponent(UITransform).setContentSize(40, 50);
+                // tile.img.getComponent(UITransform).setContentSize(40, 50);
 
                 this.isContinue = true;
             } else {
@@ -82,43 +139,38 @@ export class GameBoard extends Component {
 
 
     CheckEndGame() {
-        if (this.isContinue) {
-            // if(this.isTurnPlayer){
-            //     this
-            // }
-        } else {
-            // Delay 2s 
-            this.ChangeTurn();
-
-            if (!this.isTurnPlayer) {
-                this.BotPlay();
+        if (this.scorePlayer > this.scoreToWin || this.scoreEnemy > this.scoreToWin) {
+            if (this.turnPlayer == 1) {
+                this.popupWin.active = true;
+            } else {
+                this.popupLose.active = true;
             }
         }
     }
 
     NextTurn() {
         if (this.isContinue == false) {
-            if (this.isTurnPlayer) {
+            if (this.turnPlayer == 2) {
+                console.log("Turn Player again");
                 this.turnPlayer = 1;
+                this.ListenEvent();
             } else {
                 this.turnPlayer = 2;
-                // this.isTurnPlayer = this.isTurnPlayer;
+                this._timer = 0;
+                console.log("time to turn enemy");
+            }
+        } else {
+            this._timer = 0;
+            if (this.turnPlayer == 2) {
+                this.isTurnEnemy = true;
             }
         }
     }
 
-    ChangeTurn() {
-        if (this.isTurnPlayer) {
-            this.isTurnPlayer = false;
-        } else {
-            this.isTurnPlayer = true;
-        }
-    }
-
     OpenTileAroundZero(target) {
-        for (var i = -1; i < 2; i++) {
-            for (var j = -1; j < 2; j++) {
-                var tileAround = this.GetTile(target.posX + i, target.posY + j);
+        for (let i = -1; i < 2; i++) {
+            for (let j = -1; j < 2; j++) {
+                let tileAround = this.GetTile(target.posX + i, target.posY + j);
                 if (tileAround != null) {
                     if (tileAround.isHide) {
                         this.OpenTile(tileAround.posX, tileAround.posY);
@@ -130,58 +182,61 @@ export class GameBoard extends Component {
 
     BotPlay() {
         console.log("Bot play");
-        var k = 0;
-        var listTilesHide = [];
-        for (var i = 0; i < this.listTiles.length; i++) {
+        let k = 0;
+        let listTilesHide = [];
+        for (let i = 0; i < this.listTiles.length; i++) {
             if (this.listTiles[i].isHide) {
-                listTilesHide[k] = this.listTiles[i];
+                console.log("x: " + this.listTiles[i].posX + " - " + this.listTiles[i].posY)
+                listTilesHide.push(this.listTiles[i]);
             }
             k++;
         }
-        var random = this.GetRandomInt(0, listTilesHide.length);
+        // ===== Log debug ====== //
+        console.log("size tiles" + listTilesHide.length);
+        let random = this.GetRandomInt(0, listTilesHide.length);
+
+        // ==== Check ===== //
         if (listTilesHide[random] != null) {
             this.OpenTile(listTilesHide[random].posX, listTilesHide[random].posY);
         }
-
-        this.CheckEndGame();
     }
 
     /// ====== HANDLE LOGIC GAME BOARD (SETUP BOARD) ======= ///
 
     CreateMap() {
-        for (var i = 0; i < this.width * this.height; i++) {
-            var tile = instantiate(this.tilePref);
+        for (let i = 0; i < this.width * this.height; i++) {
+            let tile = instantiate(this.tilePref);
             tile.parent = this.posContainTiles;
         }
     }
 
     SetIndexMap() {
-        for (var i = 0; i < this.listTiles.length; i++) {
+        for (let i = 0; i < this.listTiles.length; i++) {
             this.listTiles[i].posX = i % this.width;
             this.listTiles[i].posY = Math.trunc(i / this.height);
             this.listTiles[i].isHide = true;
             this.listTiles[i].text.getComponent(Label).string = "";
 
             if ((this.listTiles[i].posX + this.listTiles[i].posY) % 2 == 0) {
-                var random = this.GetRandomInt(0, this.arrBlockLight.length);
+                let random = this.GetRandomInt(0, this.arrBlockLight.length);
                 // console.log("random" + random);
                 this.listTiles[i].img.getComponent(Sprite).spriteFrame = this.arrBlockLight[random];
             }
             else {
-                var random = this.GetRandomInt(0, this.arrBlockDark.length);
+                let random = this.GetRandomInt(0, this.arrBlockDark.length);
                 this.listTiles[i].getComponent(Sprite).spriteFrame = this.arrBlockDark[random];
             }
         }
     }
 
     SetupMines() {
-        var numbMineCreate = 0;
+        let numbMineCreate = 0;
 
         while (this.numberMines > numbMineCreate) {
-            var posX = this.GetRandomInt(0, this.width);
-            var posY = this.GetRandomInt(0, this.height);
+            let posX = this.GetRandomInt(0, this.width);
+            let posY = this.GetRandomInt(0, this.height);
 
-            var tile = this.GetTile(posX, posY);
+            let tile = this.GetTile(posX, posY);
             if (tile != null) {
                 if (!tile.isMine) {
                     tile.isMine = true;
@@ -192,7 +247,7 @@ export class GameBoard extends Component {
     }
 
     SetupNumbers() {
-        for (var i = 0; i < this.listTiles.length; i++) {
+        for (let i = 0; i < this.listTiles.length; i++) {
             if (!this.listTiles[i].isMine) {
                 this.CheckTilesAround(this.listTiles[i]);
             }
@@ -200,10 +255,10 @@ export class GameBoard extends Component {
     }
 
     CheckTilesAround(tile) {
-        var numbMines = 0;
-        for (var i = -1; i < 2; i++) {
-            for (var j = -1; j < 2; j++) {
-                var tileAround = this.GetTile(tile.posX + i, tile.posY + j);
+        let numbMines = 0;
+        for (let i = -1; i < 2; i++) {
+            for (let j = -1; j < 2; j++) {
+                let tileAround = this.GetTile(tile.posX + i, tile.posY + j);
                 if (tileAround != null) {
                     if (tileAround.isMine) {
                         numbMines++;
@@ -212,7 +267,7 @@ export class GameBoard extends Component {
             }
         }
 
-        var tile2 = this.GetTile(tile.posX, tile.posY)
+        let tile2 = this.GetTile(tile.posX, tile.posY)
         if (tile2 != null) {
             tile2.SetNumberMines(numbMines);
         }
@@ -228,8 +283,8 @@ export class GameBoard extends Component {
     }
 
     GetListTileHide() {
-        var arrTilesHide = null;
-        for (var i = 0; i < this.listTiles.length; i++) {
+        let arrTilesHide = null;
+        for (let i = 0; i < this.listTiles.length; i++) {
             if (this.listTiles[i].isHide) {
                 arrTilesHide.Add(this.listTiles[i]);
             }

@@ -22,7 +22,7 @@ export class TileComponent extends Component {
         this.tile.on(Node.EventType.MOUSE_DOWN, this.onDown, this);
     }
 
-    onDown(event: EventMouse) {
+    onDown() {
         console.log("Open Tile x: " + this.posX + ": y" + this.posY);
         if (this.isHide) {
             this.node.emit("ClickTile", this.posX, this.posY);
@@ -30,7 +30,6 @@ export class TileComponent extends Component {
     }
 
     SetNumberMines(count) {
-        // console.log(this.posX + ":" + this.posY + " => " + count);
         this.numberMines = count;
     }
 
