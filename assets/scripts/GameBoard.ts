@@ -26,8 +26,8 @@ export class GameBoard extends Component {
     @property({ type: sp.Skeleton }) skePlayer: sp.Skeleton | null = null;
     @property({ type: sp.Skeleton }) skeEnemy: sp.Skeleton | null = null;
 
-    @property({ type: Node }) popupWin : Node = null;
-    @property({ type: Node }) popupLose : Node = null;
+    @property({ type: Node }) popupWin: Node = null;
+    @property({ type: Node }) popupLose: Node = null;
 
     // letiable logic game 
     isContinue = false;
@@ -39,6 +39,15 @@ export class GameBoard extends Component {
     playerWin = -1;
 
     start() {
+        this.newGame();
+    }
+
+    newGame() {
+        this.popupWin.active = false;
+        this.popupLose.active = false;
+
+        this.resetData();
+
         this._timer = 1.0;
 
         this.SetIndexMap();
@@ -52,6 +61,16 @@ export class GameBoard extends Component {
         this.skePlayer.setAnimation(0, "Idle2", true);
         this.textScorePlayer.getComponent(Label).string = 0;
         this.textScoreEnemy.getComponent(Label).string = 0;
+    }
+
+    resetData() {
+        this.isContinue = false;
+        this.isTurnEnemy = true;
+        this.turnPlayer = 1;
+        this.scorePlayer = 0;
+        this.scoreEnemy = 0;
+        this.scoreToWin = 0;
+        this.playerWin = -1;
     }
 
     // Handle Timer ~~ No need right now
@@ -116,9 +135,11 @@ export class GameBoard extends Component {
                 // Change img Flag
                 if (this.turnPlayer == 1) {
                     this.scorePlayer += 1;
+                    this.textScorePlayer.getComponent(Label).string = this.scorePlayer;
                     tile.img.getComponent(Sprite).spriteFrame = this.arrSpritesBombPlayer[0];
                 } else {
                     this.scoreEnemy += 1;
+                    this.textScoreEnemy.getComponent(Label).string = this.scoreEnemy;
                     tile.img.getComponent(Sprite).spriteFrame = this.arrSpritesBombEnemy[0];
                 }
                 // tile.img.getComponent(UITransform).setContentSize(40, 50);
@@ -156,6 +177,7 @@ export class GameBoard extends Component {
                 this.ListenEvent();
             } else {
                 this.turnPlayer = 2;
+                this.isTurnEnemy = true;
                 this._timer = 0;
                 console.log("time to turn enemy");
             }
@@ -186,7 +208,7 @@ export class GameBoard extends Component {
         let listTilesHide = [];
         for (let i = 0; i < this.listTiles.length; i++) {
             if (this.listTiles[i].isHide) {
-                console.log("x: " + this.listTiles[i].posX + " - " + this.listTiles[i].posY)
+                // console.log("x: " + this.listTiles[i].posX + " - " + this.listTiles[i].posY)
                 listTilesHide.push(this.listTiles[i]);
             }
             k++;
